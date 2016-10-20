@@ -1,0 +1,40 @@
+#![feature(conservative_impl_trait)]
+
+mod interpreter;
+mod optimizer;
+
+use std::fs::File;
+
+use interpreter::*;
+
+
+fn main() {
+  let args: Vec<_> = std::env::args().collect();
+  if args.len() > 2 {
+    panic!("Too much arguments!");
+  } else if args.len() < 2 {
+    panic!("You must specify a brainfuck file.");
+  }
+
+  let file = File::open(&args[1]).unwrap();
+  let original_len = file.metadata().unwrap().len();
+
+  let code = process_code(get_bytes_iter(file)
+              .map(|b| Instruction::from_char(b as char))
+            );
+
+  println!("code length: {} raw, {} optimized", original_len, code.len());
+
+  Context::new(30000).execute(&code);
+}
+
+fn process_code<I: Iterator<Item=Instruction>>(code: I) -> Vec<Instruction> {
+  let opti = code;
+  let opti = optimizer::collapse_add(opti);
+  let opti = optimizer::collapse_move(opti, false);
+
+  let mut code: Vec<_> = optimizer::collapse_move(opti, true).collect();
+  code.push(Instruction::from_op(OpCode::Halt));
+  optimizer::resolve_jumps(&mut code).unwrap();
+  code 
+}
