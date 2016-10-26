@@ -22,6 +22,9 @@ pub enum OpCode {
   Output,
   JumpIfZero,
   JumpIfNonZero,
+
+  //More instructions
+  Set(BfValue)
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -100,6 +103,13 @@ impl Instruction {
     }
   }
 
+  pub fn use_offset(&self) -> bool {
+    match self.opcode {
+      OpCode::JumpIfZero | OpCode::JumpIfNonZero => true,
+      _ => false
+    }
+  }
+
   fn execute(&self, ctx: &mut Context) -> bool {
 
     let mut offset = self.offset;
@@ -108,6 +118,10 @@ impl Instruction {
       OpCode::Halt => return false,
 
       OpCode::NoOp => (), //Do nothing
+
+      OpCode::Set(val) => {
+        *ctx.cur_cell_mut() = val;
+      },
 
       OpCode::Add(val) => {
         *ctx.cur_cell_mut() += val;

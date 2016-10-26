@@ -3,13 +3,15 @@ use std::num::Wrapping;
 
 use interpreter::*;
 use itertools::*;
+use patterns;
 
-
-pub fn optimize<I>(code: I) -> impl Iterator<Item=Instruction>
+pub fn optimize<'a, I: 'a>(code: I) -> impl Iterator<Item=Instruction> + 'a
   where I: Iterator<Item=Instruction> {
 
   let code = collapse_adds(code);
   let code = collapse_moves(code, false);
+
+  let code = patterns::replace(code, &patterns::SET_ZERO_LOOP);
 
   let code = collapse_moves(code, true);
 
@@ -22,14 +24,15 @@ pub fn collapse_moves<I>(code: I, compact: bool) -> impl Iterator<Item=Instructi
 
   combine(code, Instruction::from(OpCode::NoOp, 0), move |a, b| {
 
-    match a.opcode {
-      OpCode::JumpIfZero | OpCode::JumpIfNonZero => None,
-      
-      OpCode::NoOp if a.offset == 0 => Some(*b),
+    match (a.opcode, b.opcode) {      
+      (OpCode::NoOp, _) if a.offset == 0 => Some(*b),
 
-      OpCode::NoOp | _ if compact => match b.opcode {
-        OpCode::NoOp => Some(Instruction::from(a.opcode, a.offset + b.offset)),
-        _ => None
+      (OpCode::NoOp, OpCode::NoOp) => {
+        Some(Instruction::from(a.opcode, a.offset + b.offset))
+      },
+
+      (_, OpCode::NoOp) if compact && !a.use_offset() => {
+        Some(Instruction::from(a.opcode, a.offset + b.offset))
       },
 
       _ => None
@@ -41,13 +44,12 @@ pub fn collapse_adds<I>(code: I) -> impl Iterator<Item=Instruction>
   where I: Iterator<Item=Instruction> {
     
   combine(code, Instruction::from_op(OpCode::Add(Wrapping(0))), |a, b| {
-    match a.opcode {
-      OpCode::Add(n) if a.offset == 0 => match b.opcode {
+    match (a.opcode, b.opcode) {
+      (OpCode::Add(Wrapping(0)), _) if a.offset == 0 => Some(*b),
 
-        OpCode::Add(m) => Some(Instruction::from(OpCode::Add(n+m), b.offset)),
-
-        _ => if n == Wrapping(0) { Some(*b) } else { None }
-      }, 
+      (OpCode::Add(n), OpCode::Add(m)) if a.offset == 0 => {
+        Some(Instruction::from(OpCode::Add(n+m), b.offset))
+      },
 
       _ => None
     }

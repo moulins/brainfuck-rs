@@ -1,15 +1,21 @@
 #![feature(conservative_impl_trait)]
+#![feature(discriminant_value)]
+#![feature(static_in_const)]
+
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
 mod interpreter;
 mod itertools;
 mod optimizer;
+mod patterns;
 
 use std::fs::File;
 use std::io::Read;
 
 use interpreter::*;
+
+use itertools::*;
 
 fn main() {
   let args: Vec<_> = std::env::args().collect();
