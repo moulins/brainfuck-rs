@@ -1,6 +1,6 @@
 
 use std::num::Wrapping;
-use std::io::{self, Read};
+use std::io::{stdin, Read};
 
 pub type BfOffset = i32;
 pub type BfValue = Wrapping<i8>;
@@ -37,7 +37,7 @@ impl Context {
     Context {
       cells: vec![Wrapping(0); size],
       cursor: 0,
-      pc: 0,
+      pc: 0
     }
   }
 
@@ -58,10 +58,9 @@ impl Context {
   }
 
   pub fn read(&self) -> BfValue {
-    match get_bytes_iter(io::stdin()).next() {
-      Some(b) => Wrapping(b as i8),
-      None => Wrapping(0) //What to do on EOF?
-    }
+    stdin().bytes().next().map_or(Wrapping(0), |val| {
+      Wrapping(val.unwrap() as i8)
+    })
   }
 
   pub fn write(&self, val: BfValue) {
@@ -101,7 +100,8 @@ impl Instruction {
     }
   }
 
-  pub fn execute(&self, ctx: &mut Context) -> bool {
+  fn execute(&self, ctx: &mut Context) -> bool {
+
     let mut offset = self.offset;
 
     match self.opcode {
@@ -140,12 +140,4 @@ impl Instruction {
 
     true
   }
-}
-
-pub fn get_bytes_iter<T: Read>(reader: T) -> impl Iterator<Item=u8> {
-  reader.bytes()
-   .map(|r| match r {
-    Ok(b) => b,
-    Err(e) => panic!(e)
-   })
 }
