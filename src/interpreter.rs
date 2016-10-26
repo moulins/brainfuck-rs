@@ -3,7 +3,7 @@ use std::num::Wrapping;
 use std::io::{stdin, Read};
 
 pub type BfOffset = i32;
-pub type BfValue = Wrapping<i8>;
+pub type BfValue = i8;
 
 pub struct Context {
   cells: Vec<BfValue>,
@@ -38,7 +38,7 @@ impl Context {
     assert!(size <= BfOffset::max_value() as usize, "the buffer is too large");
 
     Context {
-      cells: vec![Wrapping(0); size],
+      cells: vec![0; size],
       cursor: 0,
       pc: 0
     }
@@ -61,13 +61,13 @@ impl Context {
   }
 
   pub fn read(&self) -> BfValue {
-    stdin().bytes().next().map_or(Wrapping(0), |val| {
-      Wrapping(val.unwrap() as i8)
+    stdin().bytes().next().map_or(0, |val| {
+      val.unwrap() as i8
     })
   }
 
   pub fn write(&self, val: BfValue) {
-    print!("{}", val.0 as u8 as char)
+    print!("{}", val as u8 as char)
   }
 
   pub fn execute(&mut self, code: &[Instruction]) {
@@ -91,8 +91,8 @@ impl Instruction {
 
   pub fn from_char(c: char) -> Self {
     match c {
-      '+' => Instruction::from_op(OpCode::Add(Wrapping(1))),
-      '-' => Instruction::from_op(OpCode::Add(Wrapping(-1))),
+      '+' => Instruction::from_op(OpCode::Add(1)),
+      '-' => Instruction::from_op(OpCode::Add(-1)),
       '>' => Instruction::from(OpCode::NoOp, 1),
       '<' => Instruction::from(OpCode::NoOp, -1),
       '[' => Instruction::from_op(OpCode::JumpIfZero),
@@ -124,7 +124,7 @@ impl Instruction {
       },
 
       OpCode::Add(val) => {
-        *ctx.cur_cell_mut() += val;
+        *ctx.cur_cell_mut() = ctx.cur_cell().wrapping_add(val);
       },
 
       OpCode::Input => {
@@ -136,14 +136,14 @@ impl Instruction {
       },
 
       OpCode::JumpIfZero => {
-        if ctx.cur_cell() == Wrapping(0) {
+        if ctx.cur_cell() == 0 {
           ctx.jump(self.offset);
         }
         offset = 0;
       },
 
       OpCode::JumpIfNonZero => {
-        if ctx.cur_cell() != Wrapping(0) {
+        if ctx.cur_cell() != 0 {
             ctx.jump(self.offset);
         }
         offset = 0;

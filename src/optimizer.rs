@@ -43,12 +43,12 @@ pub fn collapse_moves<I>(code: I, compact: bool) -> impl Iterator<Item=Instructi
 pub fn collapse_adds<I>(code: I) -> impl Iterator<Item=Instruction>
   where I: Iterator<Item=Instruction> {
     
-  combine(code, Instruction::from_op(OpCode::Add(Wrapping(0))), |a, b| {
+  combine(code, Instruction::from_op(OpCode::Add(0)), |a, b| {
     match (a.opcode, b.opcode) {
-      (OpCode::Add(Wrapping(0)), _) if a.offset == 0 => Some(*b),
+      (OpCode::Add(0), _) if a.offset == 0 => Some(*b),
 
       (OpCode::Add(n), OpCode::Add(m)) if a.offset == 0 => {
-        Some(Instruction::from(OpCode::Add(n+m), b.offset))
+        Some(Instruction::from(OpCode::Add(n.wrapping_add(m)), b.offset))
       },
 
       _ => None

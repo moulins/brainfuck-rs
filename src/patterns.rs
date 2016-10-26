@@ -10,18 +10,15 @@ pub struct Pattern<'a>(
 );
 
 
-const ZERO  : BfValue = Wrapping(0);
-const ONE   : BfValue = Wrapping(1);
-const M_ONE : BfValue = Wrapping(-1);
-
+// [+] or [-] sets the current cell to zero
 pub static SET_ZERO_LOOP: Pattern = Pattern(&[
     OpCode::JumpIfZero,
-    OpCode::Add(ZERO),
+    OpCode::Add(0),
     OpCode::JumpIfNonZero,
   ],
   &|list| match list[1].opcode {
-      OpCode::Add(ONE) | OpCode::Add(M_ONE) => {
-        Some(Instruction::from_op(OpCode::Set(ZERO)))
+      OpCode::Add(a) if a.abs() == 1 => {
+        Some(Instruction::from_op(OpCode::Set(0)))
       },
       _ => None
   });
@@ -35,7 +32,7 @@ pub fn replace<'a, I>(code: I, pat: &'a Pattern) -> impl Iterator<Item=Instructi
   replace_template(
     code,
     template,
-    |a, b| discriminant(&a.opcode) == discriminant(b),
+    |a, b| a.offset == 0 && discriminant(&a.opcode) == discriminant(b),
     matcher
   )
 }
