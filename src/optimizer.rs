@@ -11,7 +11,50 @@ pub fn optimize<'a, I: 'a>(code: I) -> impl Iterator<Item=Instruction> + 'a
   let code = collapse_adds(code);
   let code = collapse_moves(code, false);
 
-  let code = patterns::replace(code, &patterns::SET_ZERO_LOOP);
+  // [+] or [-] sets the current cell to zero
+  let code = fixed_pattern!(
+    _ = OpCode::JumpIfZero,
+    _ = OpCode::Add(incr),
+    _ = OpCode::JumpIfNonZero
+    => {
+      if incr.abs() == 1 {
+        Some(Instruction::from_op(OpCode::Set(0)))
+      } else { None }
+    }
+  )(code);
+
+  //[<] or [>] seeks a zero cell
+  let code = fixed_pattern!(
+    _ = OpCode::JumpIfZero,
+    m = OpCode::NoOp,
+    _ = OpCode::JumpIfNonZero
+    => {
+      //if the offset can be represented as a BfValue
+      m.offset_to_value().map(|o| {
+        Instruction::from_op(OpCode::FindZero(o))
+      })
+    }
+  )(code);
+
+  //[->>+<<] moves a value
+  let code = fixed_pattern!(
+    _    = OpCode::JumpIfZero,
+    _    = OpCode::Add(decr),
+    to   = OpCode::NoOp,
+    _    = OpCode::Add(incr),
+    from = OpCode::NoOp, 
+    _    = OpCode::JumpIfNonZero
+    => {
+      if !(incr.abs() == 1 && decr == -incr)
+      || !(to.offset == -from.offset) {
+        return None;
+      }
+
+      to.offset_to_value().map(|o| {
+        Instruction::from_op(OpCode::MoveAndAddTo(o))
+      })
+    }  
+  )(code);
 
   let code = collapse_moves(code, true);
 

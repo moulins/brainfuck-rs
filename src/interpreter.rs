@@ -5,11 +5,6 @@ use std::io::{stdin, Read};
 pub type BfOffset = i32;
 pub type BfValue = i8;
 
-pub struct Context {
-  cells: Vec<BfValue>,
-  cursor: usize,
-  pc: usize
-}
 
 #[derive(Copy, Clone, Debug)]
 pub enum OpCode {
@@ -24,7 +19,9 @@ pub enum OpCode {
   JumpIfNonZero,
 
   //More instructions
-  Set(BfValue)
+  Set(BfValue),
+  FindZero(BfValue),
+  MoveAndAddTo(BfValue),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -33,58 +30,13 @@ pub struct Instruction {
   pub offset: BfOffset,
 }
 
-impl Context {
-  pub fn new(size: usize) -> Self {
-    assert!(size <= BfOffset::max_value() as usize, "the buffer is too large");
-
-    Context {
-      cells: vec![0; size],
-      cursor: 0,
-      pc: 0
-    }
-  }
-
-  pub fn cur_cell(&self) -> BfValue {
-    self.cells[self.cursor]
-  }
-
-  pub fn cur_cell_mut(&mut self) -> &mut BfValue {
-    &mut self.cells[self.cursor]
-  }
-
-  pub fn move_cursor(&mut self, amount: BfOffset) {
-    self.cursor += amount as usize;
-  }
-
-  pub fn jump(&mut self, val: BfOffset){
-    self.pc = val as usize;
-  }
-
-  pub fn read(&self) -> BfValue {
-    stdin().bytes().next().map_or(0, |val| {
-      val.unwrap() as i8
-    })
-  }
-
-  pub fn write(&self, val: BfValue) {
-    print!("{}", val as u8 as char)
-  }
-
-  pub fn execute(&mut self, code: &[Instruction]) {
-    let old = self.pc;
-    self.pc = 0;
-    while code[self.pc].execute(self) {
-      self.pc += 1;
-    }
-    self.pc = old;
-  }
-}
-
 impl Instruction {
+  #[inline]
   pub fn from(op: OpCode, offset: BfOffset) -> Self {
     Instruction {opcode: op, offset: offset}
   }
 
+  #[inline]
   pub fn from_op(op: OpCode) -> Self {
     Instruction::from(op, 0)
   }
@@ -103,51 +55,75 @@ impl Instruction {
     }
   }
 
+  #[inline]
   pub fn use_offset(&self) -> bool {
     match self.opcode {
-      OpCode::JumpIfZero | OpCode::JumpIfNonZero => true,
+      OpCode::NoOp | OpCode::JumpIfZero | OpCode::JumpIfNonZero => true,
       _ => false
     }
+  }
+
+  #[inline]
+  pub fn offset_to_value(&self) -> Option<BfValue> {
+    if self.offset == (self.offset as BfValue as BfOffset) {
+    Some(self.offset as BfValue)
+    } else { None }
   }
 
   fn execute(&self, ctx: &mut Context) -> bool {
 
     let mut offset = self.offset;
 
+    //println!("{:?}", self);
     match self.opcode {
       OpCode::Halt => return false,
 
       OpCode::NoOp => (), //Do nothing
 
       OpCode::Set(val) => {
-        *ctx.cur_cell_mut() = val;
+        *ctx.cell_mut() = val;
       },
 
       OpCode::Add(val) => {
-        *ctx.cur_cell_mut() = ctx.cur_cell().wrapping_add(val);
+        *ctx.cell_mut() = ctx.cell().wrapping_add(val);
       },
 
+      OpCode::MoveAndAddTo(offset) => {
+        if ctx.cell() != 0 {
+          let o = offset as BfOffset;
+          *ctx.cell_at_mut(o) = ctx.cell_at(o).wrapping_add(ctx.cell());
+          *ctx.cell_mut() = 0;
+        }
+      }
+
       OpCode::Input => {
-        *ctx.cur_cell_mut() = ctx.read();
+        *ctx.cell_mut() = ctx.read();
       },
 
       OpCode::Output => {
-        ctx.write(ctx.cur_cell());
+        ctx.write(ctx.cell());
       },
 
       OpCode::JumpIfZero => {
-        if ctx.cur_cell() == 0 {
+        if ctx.cell() == 0 {
           ctx.jump(self.offset);
         }
         offset = 0;
       },
 
       OpCode::JumpIfNonZero => {
-        if ctx.cur_cell() != 0 {
+        if ctx.cell() != 0 {
             ctx.jump(self.offset);
         }
         offset = 0;
       },
+
+      OpCode::FindZero(step) => {
+        while ctx.cell() != 0 {
+          ctx.move_cursor(step as BfOffset);
+        }
+      }
+
     }
 
     ctx.move_cursor(offset);
@@ -155,3 +131,77 @@ impl Instruction {
     true
   }
 }
+
+pub struct Context {
+  cells: Vec<BfValue>,
+  cursor: isize,
+  pc: usize
+}
+
+impl Context {
+  pub fn new(size: usize) -> Self {
+    assert!(size <= BfOffset::max_value() as usize, "the buffer is too large");
+
+    Context {
+      cells: vec![0; size],
+      cursor: 0,
+      pc: 0
+    }
+  }
+
+  #[inline]
+  pub fn cell(&self) -> BfValue {
+    self.cell_at(0)
+  }
+
+  #[inline]
+  pub fn cell_mut(&mut self) -> &mut BfValue {
+    self.cell_at_mut(0)
+  }
+
+  #[inline]
+  pub fn cell_at(&self, offset: BfOffset) -> BfValue {
+    self.cells[(self.cursor + offset as isize) as usize]
+  }
+
+  #[inline]
+  pub fn cell_at_mut(&mut self, offset: BfOffset) -> &mut BfValue {
+    &mut self.cells[(self.cursor + offset as isize) as usize]
+  }
+
+  #[inline]
+  pub fn move_cursor(&mut self, amount: BfOffset) {
+    self.cursor += amount as isize;
+    if self.cursor < 0 {
+      println!("cursor {} amount {}", self.cursor, amount);
+    }
+  }
+
+  #[inline]
+  pub fn jump(&mut self, val: BfOffset){
+    self.pc = val as usize;
+  }
+
+  #[inline]
+  pub fn read(&self) -> BfValue {
+    stdin().bytes().next().map_or(0, |val| {
+      val.unwrap() as i8
+    })
+  }
+
+  #[inline]
+  pub fn write(&self, val: BfValue) {
+    print!("{}", val as u8 as char)
+  }
+
+  #[inline]
+  pub fn execute(&mut self, code: &[Instruction]) {
+    let old = self.pc;
+    self.pc = 0;
+    while code[self.pc].execute(self) {
+      self.pc += 1;
+    }
+    self.pc = old;
+  }
+}
+

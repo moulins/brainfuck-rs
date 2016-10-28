@@ -121,7 +121,7 @@ pub fn replace_sized_pattern<I, M>(iter: I, pattern_size: usize, matcher: M)
   }
 }
 
-pub fn replace_template<'a, I, T, E, M>(iter: I, template: &'a [T], equals: E, matcher: M)
+/*pub fn replace_template<'a, I, T, E, M>(iter: I, template: &'a [T], equals: E, matcher: M)
   -> impl Iterator<Item=I::Item> + 'a
   where I: Iterator + 'a,
         E: Fn(&I::Item, &T) -> bool + 'a,
@@ -141,5 +141,5 @@ pub fn replace_template<'a, I, T, E, M>(iter: I, template: &'a [T], equals: E, m
       None
     }
   })
-}
+}*/
  

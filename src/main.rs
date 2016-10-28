@@ -1,14 +1,13 @@
 #![feature(conservative_impl_trait)]
-#![feature(discriminant_value)]
-#![feature(static_in_const)]
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+#[macro_use]
+mod patterns;
 mod interpreter;
 mod itertools;
 mod optimizer;
-mod patterns;
 
 use std::fs::File;
 use std::io::Read;
