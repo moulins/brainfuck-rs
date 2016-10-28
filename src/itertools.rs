@@ -121,25 +121,4 @@ pub fn replace_sized_pattern<I, M>(iter: I, pattern_size: usize, matcher: M)
   }
 }
 
-/*pub fn replace_template<'a, I, T, E, M>(iter: I, template: &'a [T], equals: E, matcher: M)
-  -> impl Iterator<Item=I::Item> + 'a
-  where I: Iterator + 'a,
-        E: Fn(&I::Item, &T) -> bool + 'a,
-        M: Fn(&VecDeque<I::Item>) -> Option<I::Item> + 'a{
-
-  replace_sized_pattern(iter, template.len(), move |list| {
-    let is_match = list.iter()
-        .zip(template)
-        .skip_while(|t| {
-          let &(a, b) = t;
-              equals(a, b)
-        }).next().is_none();
-
-    if is_match {
-      matcher(list)
-    } else {
-      None
-    }
-  })
-}*/
  

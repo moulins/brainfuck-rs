@@ -107,14 +107,14 @@ impl Instruction {
 
       OpCode::JumpIfZero => {
         if ctx[0] == 0 {
-          ctx.jump(self.offset);
+          ctx.jump(offset);
         }
         offset = 0;
       },
 
       OpCode::JumpIfNonZero => {
         if ctx[0] != 0 {
-            ctx.jump(self.offset);
+            ctx.jump(offset);
         }
         offset = 0;
       },

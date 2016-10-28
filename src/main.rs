@@ -1,4 +1,3 @@
-#![feature(conservative_impl_trait)]
 
 #![allow(dead_code)]
 #![allow(unused_imports)]
