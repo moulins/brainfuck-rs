@@ -2,7 +2,8 @@
 Yet Another Brainfuck Interpreter written in Rust, because why the f$%* not? (And it's a good way to learn a new language)  
 If you don't know brainfuck yet, go [here](https://esolangs.org/wiki/brainfuck).
 
-Compile with the `--release` for better performance.
+This program uses the `impl Trait` feature, and so must be compiled with rustc nightly.  
+Compile with the `--release` flag for better performance.
 
 
 ## Implementation
