@@ -1,6 +1,8 @@
 
-use std::num::Wrapping;
+
 use std::io::{stdin, Read};
+use std::num::Wrapping;
+use std::ops::{Index, IndexMut};
 
 pub type BfOffset = i32;
 pub type BfValue = i8;
@@ -74,52 +76,51 @@ impl Instruction {
 
     let mut offset = self.offset;
 
-    //println!("{:?}", self);
     match self.opcode {
       OpCode::Halt => return false,
 
       OpCode::NoOp => (), //Do nothing
 
       OpCode::Set(val) => {
-        *ctx.cell_mut() = val;
+        ctx[0] = val;
       },
 
       OpCode::Add(val) => {
-        *ctx.cell_mut() = ctx.cell().wrapping_add(val);
+        ctx[0] = ctx[0].wrapping_add(val);
       },
 
       OpCode::MoveAndAddTo(offset) => {
-        if ctx.cell() != 0 {
-          let o = offset as BfOffset;
-          *ctx.cell_at_mut(o) = ctx.cell_at(o).wrapping_add(ctx.cell());
-          *ctx.cell_mut() = 0;
+        if ctx[0] != 0 {
+          let offset = offset as BfOffset;
+          ctx[offset] = ctx[offset].wrapping_add(ctx[0]);
+          ctx[0] = 0;
         }
       }
 
       OpCode::Input => {
-        *ctx.cell_mut() = ctx.read();
+        ctx[0] = ctx.read();
       },
 
       OpCode::Output => {
-        ctx.write(ctx.cell());
+        ctx.write(ctx[0]);
       },
 
       OpCode::JumpIfZero => {
-        if ctx.cell() == 0 {
+        if ctx[0] == 0 {
           ctx.jump(self.offset);
         }
         offset = 0;
       },
 
       OpCode::JumpIfNonZero => {
-        if ctx.cell() != 0 {
+        if ctx[0] != 0 {
             ctx.jump(self.offset);
         }
         offset = 0;
       },
 
       OpCode::FindZero(step) => {
-        while ctx.cell() != 0 {
+        while ctx[0] != 0 {
           ctx.move_cursor(step as BfOffset);
         }
       }
@@ -138,6 +139,22 @@ pub struct Context {
   pc: usize
 }
 
+impl Index<BfOffset> for Context {
+  type Output = BfValue;
+
+  #[inline]
+  fn index(&self, idx: BfOffset) -> &BfValue {
+    &self.cells[(self.cursor + idx as isize) as usize]
+  }
+}
+
+impl IndexMut<BfOffset> for Context {
+  #[inline]
+  fn index_mut(&mut self, idx: BfOffset) -> &mut BfValue {
+    &mut self.cells[(self.cursor + idx as isize) as usize]
+  }
+}
+
 impl Context {
   pub fn new(size: usize) -> Self {
     assert!(size <= BfOffset::max_value() as usize, "the buffer is too large");
@@ -147,26 +164,6 @@ impl Context {
       cursor: 0,
       pc: 0
     }
-  }
-
-  #[inline]
-  pub fn cell(&self) -> BfValue {
-    self.cell_at(0)
-  }
-
-  #[inline]
-  pub fn cell_mut(&mut self) -> &mut BfValue {
-    self.cell_at_mut(0)
-  }
-
-  #[inline]
-  pub fn cell_at(&self, offset: BfOffset) -> BfValue {
-    self.cells[(self.cursor + offset as isize) as usize]
-  }
-
-  #[inline]
-  pub fn cell_at_mut(&mut self, offset: BfOffset) -> &mut BfValue {
-    &mut self.cells[(self.cursor + offset as isize) as usize]
   }
 
   #[inline]
