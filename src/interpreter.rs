@@ -144,14 +144,22 @@ impl Index<BfOffset> for Context {
 
   #[inline]
   fn index(&self, idx: BfOffset) -> &BfValue {
-    &self.cells[(self.cursor + idx as isize) as usize]
+    let idx = self.get_index(idx);
+    //this is ok because get_index panics if out of bounds
+    unsafe {
+      self.cells.get_unchecked(idx)
+    }
   }
 }
 
 impl IndexMut<BfOffset> for Context {
   #[inline]
   fn index_mut(&mut self, idx: BfOffset) -> &mut BfValue {
-    &mut self.cells[(self.cursor + idx as isize) as usize]
+    let idx = self.get_index(idx);
+    //this is ok because get_index panics if out of bounds
+    unsafe {
+      self.cells.get_unchecked_mut(idx)
+    }
   }
 }
 
@@ -167,11 +175,18 @@ impl Context {
   }
 
   #[inline]
+  fn get_index(&self, offset: BfOffset) -> usize {
+    let res = (self.cursor + offset as isize) as usize;
+    if res >= self.cells.len() {
+      panic!("index out of bounds! ({}, len is {}", res as isize, self.cells.len());
+    }
+    res
+  }
+
+  #[inline]
   pub fn move_cursor(&mut self, amount: BfOffset) {
     self.cursor += amount as isize;
-    if self.cursor < 0 {
-      println!("cursor {} amount {}", self.cursor, amount);
-    }
+
   }
 
   #[inline]
