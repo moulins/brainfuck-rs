@@ -11,6 +11,17 @@ pub fn optimize<'a, I: 'a>(code: I) -> impl Iterator<Item=Instruction> + 'a
   let code = collapse_adds(code);
   let code = collapse_moves(code, false);
 
+  let code = pattern_set_cell(code);
+  let code = pattern_seek_zero(code);
+  let code = pattern_move_cell(code);
+
+  let code = collapse_moves(code, true);
+
+  code
+}
+
+pub fn pattern_set_cell<I>(code: I) -> impl Iterator<Item=Instruction>
+  where I: Iterator<Item=Instruction> {
   // [+] or [-] sets the current cell to zero
   let code = fixed_pattern!(
     _ = OpCode::JumpIfZero,
@@ -23,8 +34,21 @@ pub fn optimize<'a, I: 'a>(code: I) -> impl Iterator<Item=Instruction> + 'a
     }
   )(code);
 
+  fixed_pattern!(
+    _ = OpCode::Set(val),
+    _ = OpCode::Add(incr)
+    => {
+      let res = val.wrapping_add(incr);
+      Some(Instruction::from_op(OpCode::Set(res)))
+    }
+  )(code)
+
+}
+
+pub fn pattern_seek_zero<I>(code: I) -> impl Iterator<Item=Instruction>
+  where I: Iterator<Item=Instruction> {
   //[<] or [>] seeks a zero cell
-  let code = fixed_pattern!(
+  fixed_pattern!(
     _ = OpCode::JumpIfZero,
     m = OpCode::NoOp,
     _ = OpCode::JumpIfNonZero
@@ -34,10 +58,13 @@ pub fn optimize<'a, I: 'a>(code: I) -> impl Iterator<Item=Instruction> + 'a
         Instruction::from_op(OpCode::FindZero(o))
       })
     }
-  )(code);
+  )(code)
+}
 
+pub fn pattern_move_cell<I>(code: I) -> impl Iterator<Item=Instruction>
+  where I: Iterator<Item=Instruction> {
   //[->>+<<] moves a value
-  let code = fixed_pattern!(
+  fixed_pattern!(
     _    = OpCode::JumpIfZero,
     _    = OpCode::Add(decr),
     to   = OpCode::NoOp,
@@ -54,17 +81,11 @@ pub fn optimize<'a, I: 'a>(code: I) -> impl Iterator<Item=Instruction> + 'a
         Instruction::from_op(OpCode::MoveAndAddTo(o))
       })
     }  
-  )(code);
-
-  let code = collapse_moves(code, true);
-
-  code
+  )(code)
 }
-
 
 pub fn collapse_moves<I>(code: I, compact: bool) -> impl Iterator<Item=Instruction>
   where I: Iterator<Item=Instruction> {
-
   combine(code, Instruction::from(OpCode::NoOp, 0), move |a, b| {
 
     match (a.opcode, b.opcode) {      
